@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "talent-rag"
+version = "1.0.0"
+description = "RAG-powered talent search engine: semantic + hybrid resume retrieval (FAISS / ChromaDB), LLM-grounded candidate explanations, bias audit and a Streamlit chat UI."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Salik Hussain" }]
+keywords = ["nlp", "rag", "retrieval-augmented-generation", "resume", "recruiting", "faiss", "chromadb", "llm", "bias-audit"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.23",
+    "pandas>=1.5",
+    "scipy>=1.9",
+    "scikit-learn>=1.2",
+    "matplotlib>=3.6",
+]
+
+[project.optional-dependencies]
+faiss = ["faiss-cpu>=1.7.4"]
+chroma = ["chromadb>=0.5"]
+hf = ["torch>=2.1", "transformers>=4.45"]
+langchain = ["langchain-core>=0.2"]
+app = ["streamlit>=1.30"]
+all = ["faiss-cpu>=1.7.4", "chromadb>=0.5", "torch>=2.1", "transformers>=4.45", "langchain-core>=0.2", "streamlit>=1.30"]
+dev = ["pytest>=7", "ruff>=0.4", "faiss-cpu>=1.7.4", "chromadb>=0.5", "langchain-core>=0.2", "streamlit>=1.30", "torch>=2.1", "transformers>=4.45"]
+
+[project.scripts]
+talent-rag = "talent_rag.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning", "ignore::FutureWarning"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py39"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]

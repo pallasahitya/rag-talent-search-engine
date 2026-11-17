@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this project, please cite it as below."
+title: "rag-talent-search-engine: RAG-Powered Talent Search over Resumes"
+type: software
+authors:
+  - family-names: "Hussain"
+    given-names: "Salik"
+repository-code: "https://github.com/salikhussain71-code/rag-talent-search-engine"
+license: MIT
+version: 1.0.0
+date-released: 2026-11-09
+keywords: [nlp, rag, retrieval-augmented-generation, resume, faiss, chromadb, llm, bias-audit]

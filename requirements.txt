@@ -1,0 +1,11 @@
+numpy>=1.23
+pandas>=1.5
+scipy>=1.9
+scikit-learn>=1.2
+matplotlib>=3.6
+faiss-cpu>=1.7.4
+chromadb>=0.5
+torch>=2.1
+transformers>=4.45
+langchain-core>=0.2
+streamlit>=1.30

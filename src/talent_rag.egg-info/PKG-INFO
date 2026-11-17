@@ -1,0 +1,282 @@
+Metadata-Version: 2.4
+Name: talent-rag
+Version: 1.0.0
+Summary: RAG-powered talent search engine: semantic + hybrid resume retrieval (FAISS / ChromaDB), LLM-grounded candidate explanations, bias audit and a Streamlit chat UI.
+Author: Salik Hussain
+License: MIT
+Keywords: nlp,rag,retrieval-augmented-generation,resume,recruiting,faiss,chromadb,llm,bias-audit
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy>=1.23
+Requires-Dist: pandas>=1.5
+Requires-Dist: scipy>=1.9
+Requires-Dist: scikit-learn>=1.2
+Requires-Dist: matplotlib>=3.6
+Provides-Extra: faiss
+Requires-Dist: faiss-cpu>=1.7.4; extra == "faiss"
+Provides-Extra: chroma
+Requires-Dist: chromadb>=0.5; extra == "chroma"
+Provides-Extra: hf
+Requires-Dist: torch>=2.1; extra == "hf"
+Requires-Dist: transformers>=4.45; extra == "hf"
+Provides-Extra: langchain
+Requires-Dist: langchain-core>=0.2; extra == "langchain"
+Provides-Extra: app
+Requires-Dist: streamlit>=1.30; extra == "app"
+Provides-Extra: all
+Requires-Dist: faiss-cpu>=1.7.4; extra == "all"
+Requires-Dist: chromadb>=0.5; extra == "all"
+Requires-Dist: torch>=2.1; extra == "all"
+Requires-Dist: transformers>=4.45; extra == "all"
+Requires-Dist: langchain-core>=0.2; extra == "all"
+Requires-Dist: streamlit>=1.30; extra == "all"
+Provides-Extra: dev
+Requires-Dist: pytest>=7; extra == "dev"
+Requires-Dist: ruff>=0.4; extra == "dev"
+Requires-Dist: faiss-cpu>=1.7.4; extra == "dev"
+Requires-Dist: chromadb>=0.5; extra == "dev"
+Requires-Dist: langchain-core>=0.2; extra == "dev"
+Requires-Dist: streamlit>=1.30; extra == "dev"
+Requires-Dist: torch>=2.1; extra == "dev"
+Requires-Dist: transformers>=4.45; extra == "dev"
+Dynamic: license-file
+
+<div align="center">
+
+# 🧭 RAG-Powered Talent Search Engine
+
+**Ask in plain language, get explained candidates.** Resumes are embedded into a **vector database (FAISS / ChromaDB)**;
+a hybrid semantic + keyword search retrieves the best matches; an **LLM (Llama 3 / GPT / Gemini)** explains *why* the top 3 fit -
+grounded in the resume text, with personal data redacted - and a built-in **bias audit** checks the search for unfair behaviour.
+
+[![CI](https://github.com/salikhussain71-code/rag-talent-search-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/salikhussain71-code/rag-talent-search-engine/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+</div>
+
+> **NLP internship - Task 8 (Industry level):** *RAG-Powered Talent Search Engine*
+> Dataset: Resume Entities for NER (Kaggle) · Tools: LangChain / LlamaIndex-style retrieval, ChromaDB / FAISS, Hugging Face Transformers, OpenAI / Gemini APIs
+> Topics: RAG, vector databases, large language models
+
+> **Recruiters don't want to read 1,000 resumes.** They want to ask: *"Find me a Junior Data Analyst who knows SQL and Tableau."*
+
+---
+
+## Contents
+[What it does](#what-it-does) · [Task checklist](#task-checklist) · [Architecture](#architecture) · [Quick start](#quick-start) · [Usage](#usage) ·
+[LLM setup](#llm-explanations) · [Bonus features](#bonus-features) · [Results](#results) · [Verification status](#verification-status) ·
+[Project structure](#project-structure) · [Fairness and privacy](#fairness-and-privacy) · [Troubleshooting](#troubleshooting) · [License](#license)
+
+## What it does
+```text
+recruiter> Find me a Junior Data Analyst who knows SQL and Tableau
+Understood requirements: skill: SQL, skill: Tableau, role: data analyst, experience: up to 2 years
+
+#1  Amna Rossi (R0013)  - Junior Data Analyst, 1y   coverage 100%
+    skills matched: SQL, Tableau   missing: -
+    why [A, fit 5/5]: Role: Junior Data Analyst, 1 year of experience. Meets SQL; Tableau; ...
+      evidence: "Skills: Excel, Statistics, Python, Power BI, ETL, SQL, Tableau, ..."
+#2  ...   coverage 75%   missing: SQL
+```
+(Real output from the bundled **synthetic** sample - fictional people - using the offline template explainer; shortened.)
+
+1. **Retrieve** - resumes are chunked (section-aware + a structured profile chunk), embedded and stored in FAISS or ChromaDB; search is dense, BM25 or **hybrid (reciprocal-rank fusion)**.
+2. **Understand the request** - requested skills, seniority ("junior"), years ("3-5 years") and role are parsed; every candidate gets a **requirement coverage** and the list can be re-ranked by it.
+3. **Explain** - the top 3 are sent to an LLM, which writes why each fits, what is missing, and quotes the evidence; every quote is **verified against the resume text**.
+4. **Stay fair and private** - names, contact data, pronouns and personal-detail lines are redacted before embedding and before any LLM call; a **bias audit** tests whether gendered cues change the ranking.
+
+## Task checklist
+| Requirement from the brief | Where |
+|---|---|
+| Dataset: Resume Entities for NER (Kaggle) | `data.py` parses the Kaggle annotation format (+ CSV / txt folders) · [`docs/DATASET.md`](docs/DATASET.md) |
+| RAG pipeline: embed resumes into a **vector database** (ChromaDB or FAISS) | `index.py`, `stores.py`: **both** FAISS and ChromaDB (+ NumPy), identical results verified by tests |
+| Semantic search that retrieves candidates from natural-language queries | `TalentIndex.search` / `TalentSearch.search` - dense, BM25, hybrid |
+| **LLM-based evaluation**: top 3 resumes to an LLM (Llama 3 / GPT) for a text summary of why they fit | `explain.py`, `llm.py`: OpenAI-compatible, **Gemini**, **Ollama (Llama 3)**; offline template fallback |
+| Tools: LangChain / LlamaIndex | `langchain_adapter.py` (`TalentRetriever`, a standard LangChain retriever) |
+| Tools: Hugging Face Transformers | `HFEmbedder` (MiniLM, BGE, E5 or any encoder) |
+| Tools: OpenAI / Gemini API | `OpenAICompatibleClient`, `GeminiClient` (standard-library HTTP, no SDK needed) |
+| Bonus: **Bias check** that flags demographic favouritism | `bias.py`: counterfactual test + qualified-selection parity · `bias-audit` command |
+| Bonus: **Streamlit** chat UI | `app/streamlit_app.py` |
+
+## Architecture
+```mermaid
+flowchart LR
+    R[Resumes<br/>Kaggle JSON / CSV / txt] --> A[anonymise<br/>name · e-mail · phone · pronouns · DOB ...]
+    A --> C[chunk<br/>sections + profile chunk]
+    C --> E[embed<br/>LSA offline · MiniLM · BGE · E5]
+    E --> V[(vector store<br/>FAISS · ChromaDB · NumPy)]
+    C --> B[BM25]
+    Q[Recruiter query] --> P[parse<br/>skills · years · role]
+    Q --> S[dense search + BM25]
+    V --> S
+    B --> S
+    S --> F[reciprocal-rank fusion<br/>+ requirement re-ranking]
+    P --> F
+    F --> T[top-3 + evidence]
+    T --> L[LLM explanation<br/>Llama 3 / GPT / Gemini / template]
+    L --> G[grounding check<br/>quotes verified]
+    G --> O[answer: candidates, why, gaps]
+    F --> U[bias audit]
+```
+Details: [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).
+
+## Quick start
+```bash
+git clone https://github.com/salikhussain71-code/rag-talent-search-engine.git
+cd rag-talent-search-engine
+
+python -m venv .venv
+# Windows (PowerShell):  .venv\Scripts\Activate.ps1      Windows (cmd): .venv\Scripts\activate.bat
+# Linux / macOS:         source .venv/bin/activate
+
+pip install -e ".[dev]"            # FAISS, ChromaDB, LangChain core, Streamlit, torch + transformers, pytest, ruff
+python -m talent_rag demo          # offline end-to-end run on the bundled synthetic sample (a few seconds)
+streamlit run app/streamlit_app.py # chat UI (loads outputs/demo/index created by the demo)
+```
+The demo needs **no internet and no API key**: it uses offline LSA embeddings and the template explainer.
+Lighter install (no torch / chroma): `pip install -e ".[faiss]"` then use `--store faiss` or `--store numpy`.
+
+## Usage
+```bash
+# 0. Get the real data (docs/DATASET.md) and look at it
+python -m talent_rag stats --data "data/raw/Entity Recognition in Resumes.json"
+
+# 1. Build the index (real semantic embeddings; downloads the model once)
+python -m talent_rag build-index --data "data/raw/Entity Recognition in Resumes.json" --out outputs/kaggle_index --embedder bge-small --store faiss
+#    embedders: lsa (offline) | minilm | bge-small | e5-small | hf:<hub id or folder>      stores: faiss | chroma | numpy
+
+# 2. Search
+python -m talent_rag search "Find me a Junior Data Analyst who knows SQL and Tableau" --index outputs/kaggle_index
+python -m talent_rag search "Senior DevOps engineer, 6+ years, AWS and Kubernetes" --index outputs/kaggle_index --mode hybrid -k 5 --json
+python -m talent_rag chat --index outputs/kaggle_index                # interactive terminal chat
+
+# 3. Evaluate retrieval (annotation-derived benchmark) and audit bias
+python -m talent_rag evaluate  --data "data/raw/Entity Recognition in Resumes.json" --embedders lsa minilm bge-small --compare-anonymization
+python -m talent_rag bias-audit --data "data/raw/Entity Recognition in Resumes.json" --embedder bge-small
+```
+From Python:
+```python
+from talent_rag.index import TalentIndex
+from talent_rag.searcher import TalentSearch
+
+index = TalentIndex.load("outputs/kaggle_index")
+result = TalentSearch(index).search("Junior Data Analyst who knows SQL and Tableau", k=3, explain=True)
+for hit, cov in zip(result.hits, result.coverages):
+    print(hit.rank, hit.resume.name, hit.resume.title, f"{cov.score:.0%}", cov.missing_skills)
+print(result.explanation.overall)
+```
+
+## LLM explanations
+| `--explain` value | Backend |
+|---|---|
+| `template` (default) / `none` | offline deterministic explainer (no LLM) / no explanation |
+| `ollama:llama3.1:8b` | **Llama 3 running locally** through Ollama - recommended for real resumes |
+| `openai:gpt-4o-mini` | OpenAI (or any OpenAI-compatible server via `OPENAI_BASE_URL`) |
+| `gemini:gemini-2.5-flash` | Google Gemini |
+
+Setup, API keys, model names and troubleshooting: [`docs/LLM_SETUP.md`](docs/LLM_SETUP.md). Model names change often - use the one in your provider's docs.
+If the LLM is unreachable or answers with invalid JSON, the engine **falls back to the template explainer and tells you why**.
+
+## Bonus features
+* **Bias check** - `python -m talent_rag bias-audit`: (1) *counterfactual test* - every gender-coded candidate is rewritten with the counterpart name, e-mail and
+  swapped pronouns, the same queries are run on both versions and rankings/scores are compared; (2) *qualified-selection parity* - selection rate of each group among qualified
+  candidates with the disparate-impact ratio and a Fisher exact test. Anonymisation ON must give **exactly zero** change (verified in the tests).
+* **Streamlit chat UI** - `streamlit run app/streamlit_app.py`: chat history, candidate cards with coverage, evidence snippets, explanation, grounding warnings, sidebar settings
+  (mode, k, re-ranking weight, LLM backend), "Show names" toggle.
+* **Hybrid retrieval, requirement-aware re-ranking, grounded explanations, LangChain retriever** (`from talent_rag.langchain_adapter import TalentRetriever`).
+
+## Results
+
+### Smoke test on the bundled synthetic sample (45 resumes)
+> ⚠️ **Not a benchmark.** The sample is small, easy and synthetic; nearly every configuration scores close to perfect, BM25 is favoured because relevance is defined by
+> skill mentions, and re-ranking by requirement coverage looks perfect *by construction* (the benchmark's relevance rule is the same check). The numbers only prove the pipeline works.
+
+Bias audit on the sample (30 queries): with anonymisation **ON**, swapping gendered names/pronouns changed nothing (top-3 overlap 1.000, max score change 0.0000); with
+anonymisation **OFF** it changed the top-3 for 1 of 30 queries (3%, max score change 0.053). Full tables: [`outputs/demo/`](outputs/demo/).
+
+### Real Kaggle data (fill in after your runs)
+```bash
+python -m talent_rag evaluate --data "data/raw/Entity Recognition in Resumes.json" --embedders lsa minilm bge-small --compare-anonymization --out outputs/kaggle_evaluation
+```
+| embedder | mode | anonymised | precision@3 | MRR | nDCG@10 |
+|---|---|---|---|---|---|
+| *(run the command above and paste outputs/kaggle_evaluation/retrieval_report.md)* | | | | | |
+
+> No real-data numbers are claimed here: the environment this project was written in has no access to Kaggle, the Hugging Face hub or LLM APIs.
+
+## Verification status
+What was actually tested (129 automated tests, all passing; Python 3.12; CPU):
+
+| Area | How it was verified |
+|---|---|
+| Kaggle format parsing, offsets, CSV / folder inputs, robustness | unit tests incl. inclusive / exclusive `end`, null annotations, duplicate ids |
+| Anonymisation | tests for e-mail / phone / URL / names / pronouns / titles / personal-detail lines (whole-line and inline); job terms are kept; a job title on line 1 is *not* mistaken for a name |
+| FAISS, **ChromaDB**, NumPy stores | real libraries; identical top-k rankings, k clamping, extension, save/load and persistence |
+| Hugging Face embedder code path | pooling, prefixes, batching, determinism with a tiny local BERT |
+| Dense / BM25 / hybrid search, re-ranking, evidence | integration tests; hybrid score equals the RRF formula |
+| **LLM clients** (OpenAI-compatible, Gemini, Ollama) | tested against a **real local HTTP server**: request path, headers, payload, response parsing, retries, error handling, API key never leaked |
+| Explanation grounding | hallucinated quotes flagged, invalid JSON / LLM failure fall back to the template, prompt contains no names / e-mails / ids |
+| Bias audit | exact zero change with anonymisation on; non-zero without; counts add up; small-sample warning |
+| Streamlit chat UI, CLI, LangChain retriever | `streamlit.testing`, CLI tests (all commands + error paths), retriever test |
+
+**Not tested here** (no internet, hub or API access): downloading real embedding models (MiniLM / BGE / E5), calls to the real OpenAI / Gemini / Ollama services,
+the real Kaggle file, and retrieval quality with real semantic embeddings. The code paths around them are covered by the tests above; the request formats follow the providers' documented REST APIs.
+
+## Project structure
+```
+rag-talent-search-engine/
+├── src/talent_rag/
+│   ├── data.py          # Kaggle / CSV / txt loaders, entities, years of experience, skill splitting
+│   ├── anonymize.py     # PII + protected-characteristic redaction
+│   ├── chunking.py      # section-aware chunks + profile chunk
+│   ├── embedders.py     # LSA (offline) and Hugging Face encoders
+│   ├── stores.py        # NumPy / FAISS / ChromaDB vector stores
+│   ├── bm25.py          # Okapi BM25
+│   ├── index.py         # TalentIndex: build / save / load / dense-BM25-hybrid search
+│   ├── query.py         # skill vocabulary, query parsing, requirement coverage
+│   ├── searcher.py      # search + coverage + re-ranking + explanation
+│   ├── llm.py           # OpenAI-compatible / Gemini / Ollama clients (stdlib HTTP)
+│   ├── explain.py       # grounded explanations, quote verification, template fallback
+│   ├── evaluate.py      # annotation-derived benchmark, metrics, configuration comparison
+│   ├── bias.py          # counterfactual + parity audit
+│   ├── langchain_adapter.py
+│   ├── visualize.py · testing.py · lexicons.py · config.py
+│   └── cli.py           # python -m talent_rag {info,stats,build-index,search,chat,evaluate,bias-audit,demo}
+├── app/streamlit_app.py
+├── scripts/build_sample_resumes.py
+├── tests/               # 129 automated tests
+├── data/{sample,raw}/   # synthetic sample; real Kaggle file goes in raw/ (git-ignored)
+├── docs/                # METHODOLOGY · DATASET · LLM_SETUP · BIAS_AND_PRIVACY
+├── notebooks/           # 01 offline walkthrough · 02 Colab with real models
+├── outputs/demo/        # smoke-test outputs
+├── .github/workflows/ci.yml
+└── pyproject.toml · Makefile · LICENSE · CITATION.cff
+```
+
+## Fairness and privacy
+Employment screening is a **high-risk** AI use: this project reduces risk (redaction, anonymous candidates to the LLM, grounded explanations, an audit) but does not remove it.
+Use it to **shortlist and explain**, keep a human decision-maker, prefer a **local** LLM for real candidate data, and read [`docs/BIAS_AND_PRIVACY.md`](docs/BIAS_AND_PRIVACY.md)
+(limits of the audit, proxies such as college or location, consent and retention). The raw Kaggle resumes are git-ignored - never commit personal data.
+
+## Troubleshooting
+* **`Resume data not found`** - see [`docs/DATASET.md`](docs/DATASET.md); pass `--data "<your file>"` if the file name differs.
+* **`No index found`** - run `python -m talent_rag demo` or `build-index` first (the index is git-ignored).
+* **LLM errors** - the CLI/UI falls back to the template explainer and shows the reason; check keys / model names / that `ollama serve` is running.
+* **`pip install` is heavy** - use `".[faiss]"` only and `--embedder lsa --store faiss` (no torch, no chroma needed).
+* **ChromaDB / FAISS missing** - install the extra (`pip install ".[chroma]"` / `".[faiss]"`) or use `--store numpy`.
+* Indexes contain a pickle (`lsa.joblib`) - only load indexes you built yourself.
+
+## References
+* P. Lewis et al. (2020). *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.* NeurIPS.
+* G. Cormack, C. Clarke, S. Buettcher (2009). *Reciprocal Rank Fusion outperforms Condorcet and individual rank learning methods.* SIGIR.
+* S. Robertson & H. Zaragoza (2009). *The Probabilistic Relevance Framework: BM25 and Beyond.*
+* J. Johnson, M. Douze, H. Jégou (2019). *Billion-scale similarity search with GPUs* (FAISS). · [ChromaDB](https://www.trychroma.com) · [Ollama](https://ollama.com)
+* Dataturks / Kaggle: *Resume Entities for NER*.
+
+## License
+[MIT](LICENSE) © 2026 Salik Hussain · GitHub: [@salikhussain71-code](https://github.com/salikhussain71-code)

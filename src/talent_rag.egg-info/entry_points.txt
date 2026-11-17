@@ -1,0 +1,2 @@
+[console_scripts]
+talent-rag = talent_rag.cli:main
